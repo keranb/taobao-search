@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>Document</title>
+    <title>my-ex</title>
     <!-- 导入页面的基本样式 -->
     <link rel="stylesheet" href="./css/search.css" />
     <!-- 导入 jQuery -->
     <script src="./lib/jquery.js"></script>
+    <!-- 导入模板引擎 -->
+    <script src="./lib/template-web.js"></script>
   </head>
+
   <body>
     <div class="container">
       <!-- Logo -->
@@ -23,11 +26,81 @@
         </div>
         <!-- 搜索区域（搜索框和搜索按钮） -->
         <div class="search-box">
-          <input type="text" class="ipt" placeholder="请输入要搜索的内容" /><button class="btnSearch">
+          <input id = "ipt" type="text" class="ipt" placeholder="请输入要搜索的内容" /><button class="btnSearch">
             搜索
           </button>
+        <!-- 搜索建议列表 -->
+        </div>
+        <div id = "suggest-list">
+            
         </div>
       </div>
     </div>
+
+    <script id = "ipt-user" type = "text/html">
+        {{each result}}
+            <div class="suggest-item">{{$value[0]}}</div>
+        {{/each}}
+    </script>    
+    <script>
+        $(function() {
+            //声明全局变量timer，一个过程中只允许存在一个timer.
+            var timer = null;
+            //定义全局缓存对象
+            var cacheObj = {};
+            
+            //定义防抖函数
+            function  debounceSearch(kw){
+                timer = setTimeout(function(){
+                    getSuggestList(kw);
+                },500);
+            }
+
+
+            $('#ipt').on('keyup',function() {
+                clearTimeout(timer);//清除当前timer
+                var keyword = $(this).val().trim();//trim()函数过滤开头和结尾的空字符串
+                if (keyword.length <= 0){
+                    //当搜索关键词为空时，将建议列表隐藏
+                    //这个逻辑是合理的，因为只有我们使用了删除键，我们的关键词才会为空，每次使用删除键
+                    //也会触发这个函数
+                    return $('#suggest-list').empty().hide();
+                }
+                //console.log(keyword);
+
+                //优先从缓存中获取搜索建议
+                if (cacheObj[keyword]) {
+                    return renderSuggestList(cacheObj[keyword]);
+                }
+                debounceSearch(keyword);
+
+            });
+
+
+            function getSuggestList(kw) {
+                $.ajax({
+                    url: 'https://suggest.taobao.com/sug?q=' + kw,
+                    dataType: 'jsonp',
+                    success: function(res) {
+                        renderSuggestList(res);
+                    }
+                })
+            }
+
+            function renderSuggestList(res) {
+                if (res.result.length <= 0){
+                    $('#suggest-list').empty().hide();
+                }
+                var htmlstr = template('ipt-user',res);
+                $('#suggest-list').html(htmlstr).show();
+
+                //用户输入内容作为键
+                var k = $('#ipt').val().trim();
+                //需要将请求到的数据作为值进行缓存
+                cacheObj[k] = res;
+            }
+
+        })
+    </script>
   </body>
 </html>
